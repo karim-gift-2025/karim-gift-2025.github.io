@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Une Soirée au Théâtre</title>
+    <!-- Google Fonts : Cinzel pour le côté solennel/premium, Montserrat pour la lisibilité -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome pour les icônes -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --gold: #d4af37;
+            --gold-light: #f9d970;
+            --gold-dark: #aa8c2c;
+            --bg-dark: #0a0a0a;
+            --glass-bg: rgba(20, 20, 20, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.15);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--bg-dark);
+            color: #f0f0f0;
+            overflow-x: hidden;
+        }
+
+        /* TYPOGRAPHIE SOLENNELLE */
+        h1, h2, h3, .ticket-title, .play-title, .intro-title { 
+            font-family: 'Cinzel', serif; 
+            letter-spacing: 1px;
+        }
+
+        /* -----------------------------------------------------------
+           CONTROLES AUDIO (Discret en bas à droite)
+        ----------------------------------------------------------- */
+        #music-control {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10000;
+            background: rgba(0, 0, 0, 0.5); /* Fond semi-transparent */
+            border: 1px solid rgba(212, 175, 55, 0.3); /* Bordure dorée subtile */
+            color: var(--gold);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            opacity: 0.5; /* Discret par défaut */
+        }
+        
+        #music-control:hover { 
+            transform: scale(1.1); 
+            background: var(--gold); 
+            color: #000; 
+            opacity: 1;
+        }
+
+        /* -----------------------------------------------------------
+           SCENE 1: LE TICKET D'OR 3D (INTRO)
+        ----------------------------------------------------------- */
+        #intro-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100vh;
+            background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.8)), url('https://images.unsplash.com/photo-1503095392237-fc5508a3537e?q=80&w=2000') center center/cover;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 1.5s ease-in-out, visibility 1.5s;
+            perspective: 1200px;
+        }
+
+        .intro-title {
+            color: white;
+            margin-bottom: 50px;
+            font-size: 2rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            text-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+            animation: fadeIn 2s ease;
+        }
+
+        .ticket-wrapper {
+            position: relative;
+            width: 360px;
+            height: 180px;
+            transform-style: preserve-3d;
+            cursor: pointer;
+            animation: floatTicket 4s ease-in-out infinite;
+            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .ticket-wrapper:hover {
+            transform: scale(1.1) rotateY(10deg);
+        }
+
+        .ticket-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--gold-dark), var(--gold), var(--gold-light), var(--gold-dark));
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            /* Effet ticket déchiré */
+            -webkit-mask-image: radial-gradient(circle at 0 50%, transparent 10px, black 11px), 
+                                radial-gradient(circle at 100% 50%, transparent 10px, black 11px);
+            mask-image: radial-gradient(circle at 0 50%, transparent 10px, black 11px), 
+                        radial-gradient(circle at 100% 50%, transparent 10px, black 11px);
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .ticket-content {
+            border: 2px dashed rgba(56, 36, 4, 0.6);
+            width: 90%;
+            height: 85%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #3e2702;
+            text-align: center;
+        }
+
+        .ticket-title { 
+            font-size: 2.2rem; 
+            font-weight: 800; 
+            margin-bottom: 5px; 
+            letter-spacing: 2px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .ticket-subtitle { font-family: 'Montserrat'; font-size: 0.8rem; letter-spacing: 3px; text-transform: uppercase; font-weight: 600; }
+        .click-hint { margin-top: 15px; font-size: 0.7rem; font-weight: bold; opacity: 0.8; animation: pulse 2s infinite; font-family: 'Montserrat'; }
+
+        .intro-fade-out .ticket-wrapper {
+            animation: zoomIn 1s forwards cubic-bezier(0.7, 0, 0.84, 0);
+        }
+
+        @keyframes floatTicket {
+            0%, 100% { transform: rotateY(0deg) rotateX(10deg) translateY(0); }
+            50% { transform: rotateY(5deg) rotateX(-5deg) translateY(-15px); }
+        }
+        @keyframes zoomIn {
+            0% { transform: scale(1) rotateY(0); opacity: 1; }
+            50% { transform: scale(3) rotateY(180deg); opacity: 0.5; }
+            100% { transform: scale(15); opacity: 0; }
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+
+        /* -----------------------------------------------------------
+           SCENE 2: LE CONTENU PRINCIPAL
+        ----------------------------------------------------------- */
+        #main-content {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 2s ease 0.5s;
+        }
+
+        header.hero {
+            min-height: 80vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: radial-gradient(circle, #1a1a1a 0%, #000000 100%);
+            position: relative;
+            padding: 40px 20px;
+        }
+        
+        .hero-inner { position: relative; z-index: 10; padding: 20px; max-width: 900px; }
+        
+        .hero h1 { 
+            font-size: 4rem; 
+            color: var(--gold); 
+            margin-bottom: 40px; 
+            text-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
+            line-height: 1.2;
+            font-weight: 600;
+        }
+        
+        .hero-text { 
+            font-size: 1.2rem; 
+            line-height: 1.8; 
+            color: #ddd; 
+            font-weight: 300;
+            text-align: center;
+        }
+
+        .highlight-gold { color: var(--gold); font-weight: 600; }
+
+        .play-section {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 20px;
+            overflow: hidden;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .parallax-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
+            background-attachment: fixed;
+            filter: brightness(0.3) blur(0px);
+            z-index: -1;
+        }
+
+        .play-card {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.9);
+            transform: translateY(50px);
+            opacity: 0;
+            transition: all 1s ease;
+        }
+        
+        .play-card.visible { transform: translateY(0); opacity: 1; }
+        .play-section:nth-child(even) .play-card { flex-direction: row-reverse; }
+
+        .poster-wrapper {
+            flex: 0 0 40%;
+            position: relative;
+            overflow: hidden;
+            min-height: 500px;
+        }
+        .poster-wrapper img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s ease;
+        }
+        .play-card:hover .poster-wrapper img { transform: scale(1.05); }
+
+        .info-wrapper {
+            flex: 1;
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .tags-container { margin-bottom: 25px; }
+        .tag {
+            display: inline-block;
+            background: transparent;
+            color: var(--gold);
+            border: 1px solid var(--gold);
+            padding: 6px 16px;
+            border-radius: 0;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-right: 10px;
+            margin-bottom: 8px;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 500;
+        }
+
+        .play-title {
+            font-size: 3rem;
+            color: white;
+            margin-bottom: 15px;
+            line-height: 1.1;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            font-weight: 600;
+        }
+
+        .play-date {
+            color: #bbb;
+            font-style: italic;
+            margin-bottom: 30px;
+            font-size: 1rem;
+            border-left: 3px solid var(--gold);
+            padding-left: 15px;
+            font-family: 'Playfair Display', serif;
+        }
+
+        .play-synopsis { 
+            font-size: 1.1rem; 
+            line-height: 1.9; 
+            color: #ddd; 
+            margin-bottom: 40px; 
+            font-weight: 300;
+        }
+
+        .actions { margin-top: 10px; }
+
+        .golden-ticket-btn {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+            padding: 18px 40px;
+            background: linear-gradient(135deg, var(--gold-dark) 0%, var(--gold) 50%, var(--gold-light) 100%);
+            color: #2a1a00;
+            font-weight: 700;
+            text-transform: uppercase;
+            text-decoration: none;
+            letter-spacing: 2px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-family: 'Montserrat', sans-serif;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+            transition: transform 0.3s, box-shadow 0.3s;
+            --mask: radial-gradient(circle at 0.5rem, #0000 90%, #000);
+            mask-image: radial-gradient(circle at 0 50%, transparent 6px, black 7px), 
+                        radial-gradient(circle at 100% 50%, transparent 6px, black 7px);
+        }
+
+        .golden-ticket-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 25px rgba(212, 175, 55, 0.6);
+        }
+
+        footer {
+            padding: 100px 20px;
+            text-align: center;
+            color: #555;
+            font-size: 0.9rem;
+            background: #050505;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Mobile */
+        @media (max-width: 900px) {
+            .play-card { flex-direction: column !important; max-width: 500px; }
+            .poster-wrapper { height: 350px; flex: none; }
+            .hero h1 { font-size: 2.8rem; }
+            .hero-text { font-size: 1rem; text-align: left; }
+            .play-title { font-size: 2.2rem; }
+            .info-wrapper { padding: 40px 25px; }
+            .ticket-wrapper { width: 280px; height: 140px; }
+            .ticket-title { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ELEMENT AUDIO CACHÉ -->
+    <audio id="bg-music" loop>
+        <source src="https://audionautix.com/Music/CloserToJazz.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- CONTROLE MUSIQUE (Visible discrètement) -->
+    <div id="music-control" onclick="toggleMusic()" title="Couper/Mettre le son">
+        <i class="fas fa-volume-up" id="music-icon"></i>
+    </div>
+
+    <!-- SCENE 1: INTRODUCTION (TICKET 3D) -->
+    <div id="intro-overlay">
+        <h2 class="intro-title">Ton invitation...</h2>
+        
+        <div class="ticket-wrapper" onclick="enterTheater()">
+            <div class="ticket-face">
+                <div class="ticket-content">
+                    <span class="ticket-subtitle">Sélection de Noël</span>
+                    <span class="ticket-title">GOLDEN TICKET</span>
+                    <i class="fas fa-star" style="margin: 10px 0; color: #3e2702;"></i>
+                    <span class="click-hint">CLIQUER POUR ENTRER</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCENE 2: LE CONTENU -->
+    <div id="main-content">
+        <header class="hero">
+            <div class="hero-inner">
+                <h1>Sélection de Noël</h1>
+                <div class="hero-text">
+                    <p>Pour Noël, je voulais t'offrir un moment unique. Pas juste un spectacle, mais une vraie soirée d'émotions. Voici quatre univers, quatre ambiances pour célébrer ensemble.</p>
+                    <br>
+                    <p>Tu peux mener l'enquête dans le Londres des années 20 avec <span class="highlight-gold">L'Heure des Assassins</span>, te laisser emporter par le tourbillon de sosies d'<span class="highlight-gold">Une Idée Géniale</span>, ou tenter de résoudre le crime interactif de <span class="highlight-gold">Dernier Coup de Ciseaux</span>. Si tu préfères les secrets de famille, plonge dans le thriller <span class="highlight-gold">A.D.N.</span></p>
+                    <br>
+                    <p style="text-align: center; font-style: italic; color: var(--gold); font-size: 1.1em; margin-top: 20px;">Frisson, mystère ou éclats de rire : à toi de choisir.</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Container où le JS va injecter les pièces -->
+        <div id="plays-container"></div>
+
+        <footer>
+            <p>— Édition Spéciale Noël —</p>
+        </footer>
+    </div>
+
+    <script>
+        /* -----------------------------------------------------------
+           CONFIGURATION / DONNÉES (ÉDITABLE PAR LLM)
+           L'ordre dans ce tableau détermine l'ordre d'affichage.
+        ----------------------------------------------------------- */
+        const playsData = [
+            {
+                id: "ciseaux",
+                title: "Dernier Coup de Ciseaux",
+                synopsis: "Une comédie policière interactive culte ! Un meurtre est commis chaque soir et c’est au public de résoudre l’enquête. 30 ans de succès et Guinness des records de longévité aux USA ! Plus de 9 millions de spectateurs à travers le monde. Un salon de coiffure, un meurtre, un flic… des suspects, à vous de jouer ! La première pièce dont le public est le héros.",
+                tags: ["Molière 2014", "Culte", "Interactif"],
+                date: "",
+                poster: "https://d1k4bi32qf3nf2.cloudfront.net/thumb@2x/product/2025/11/dernier_coup_de_ciseaux_mathurins_1763724390.jpg.webp",
+                bgImage: "https://d1k4bi32qf3nf2.cloudfront.net/thumb@3x/product/2025/09/dcdcbandeau_1756820715.png",
+                link: "https://www.ticketac.com/spectacles/dernier-coup-de-ciseaux.htm"
+            },
+            {
+                id: "geniale",
+                title: "Une Idée Géniale",
+                synopsis: "On a tous un sosie dans le monde. Et si vous rencontriez le vôtre ? Depuis qu’ils ont visité un appartement pour s’installer ensemble, Arnaud a un léger doute... Par pur hasard, il rencontre le sosie de l'agent immobilier et lui demande de se faire passer pour le véritable agent. Une idée géniale ! À moins que le faux agent se retrouve nez à nez avec le vrai… Trois sosies dans la même soirée, c’est trop pour Arnaud !",
+                tags: ["2 Molières 2023", "Sébastien Castro", "Comédie"],
+                date: "Jusqu’au 04 janvier 2026",
+                poster: "https://d1k4bi32qf3nf2.cloudfront.net/thumb@2x/product/2025/07/une_idee_geniale_sebastien_castro_comedie_theatre_des_varietes_affiche_1752739860.jpg.webp",
+                bgImage: "https://d1k4bi32qf3nf2.cloudfront.net/thumb@3x/product/2022/08/uneideegeniale_1661848427.png",
+                link: "https://www.ticketac.com/spectacles/une-idee-geniale-34420"
+            },
+            {
+                id: "assassins",
+                title: "L'Heure des Assassins",
+                synopsis: "La réussite est une chose étrange. Voyez-vous, ce soir, je signe mon retour triomphant en Angleterre. Tout le gratin de Londres sera là, pourtant il y aura bien un grand absent. Moi, Philip Somerset. Vous ne me verrez pas car ce soir, je vais mourir. C’était une si belle soirée, j’étais entouré d’amis chers... Pourtant mon assassin est forcément parmi eux. Alors, qui ? Et si c’était simplement mon heure ? Une pièce riche en rebondissements dans l'univers feutré d'un théâtre londonien.",
+                tags: ["Policier", "Costumes", "Succès Avignon"],
+                date: "Jusqu’au 18 janvier 2026",
+                poster: "https://d1k4bi32qf3nf2.cloudfront.net/thumb@2x/product/2024/07/heuredesassassins_40x60_comediedeparis_1720598947.jpg.webp",
+                bgImage: "https://d1k4bi32qf3nf2.cloudfront.net/thumb@3x/product/2024/11/lheure_des_assassins_comedie_de_paris_cover_1730824632.jpg",
+                link: "https://www.ticketac.com/spectacles/lheure-des-assassins-1"
+            },
+            {
+                id: "adn", // Déplacé à la fin comme demandé
+                title: "A.D.N.",
+                synopsis: "À la suite d'un test ADN, Tomas découvre qu'il n'est pas le père de son bébé - mais son oncle. Seulement, à sa connaissance, il n'a pas de frère. Le jour où sa mère est prête à lui faire des révélations, Tomas la retrouve assassinée. Après le triomphe de 'L'embarras du choix' ou 'La Dame Blanche', découvrez la nouvelle pépite théâtrale de Sébastien Azzopardi. Un thriller inspiré de faits réels.",
+                tags: ["Nomination Molières 2025", "Thriller", "Faits Réels"],
+                date: "", 
+                poster: "https://d1k4bi32qf3nf2.cloudfront.net/thumb@2x/product/2025/03/adn_nominationmolieres_theatre_michel_1743154702.png.webp",
+                bgImage: "https://d1k4bi32qf3nf2.cloudfront.net/thumb@3x/product/2024/07/adn_piece_de_theatre_paris_azzopardi_cover_1721056578.jpg",
+                link: "https://www.ticketac.com/spectacles/adn-35087"
+            }
+        ];
+
+        /* -----------------------------------------------------------
+           LOGIQUE DU DOM
+        ----------------------------------------------------------- */
+        
+        function renderPlays() {
+            const container = document.getElementById('plays-container');
+            
+            playsData.forEach(play => {
+                const tagsHtml = play.tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+                
+                // Gestion de l'affichage de la date seulement si elle existe
+                const dateHtml = play.date ? `<div class="play-date"><i class="far fa-calendar-alt"></i> ${play.date}</div>` : '';
+
+                const section = document.createElement('section');
+                section.className = 'play-section';
+                
+                section.innerHTML = `
+                    <div class="parallax-bg" style="background-image: url('${play.bgImage}');"></div>
+                    
+                    <article class="play-card">
+                        <div class="poster-wrapper">
+                            <img src="${play.poster}" alt="Affiche de ${play.title}" onerror="this.src='https://via.placeholder.com/400x600?text=Image+Non+Dispo'">
+                        </div>
+                        <div class="info-wrapper">
+                            <div class="tags-container">
+                                ${tagsHtml}
+                            </div>
+                            <h2 class="play-title">${play.title}</h2>
+                            ${dateHtml}
+                            <p class="play-synopsis">${play.synopsis}</p>
+                            
+                            <div class="actions">
+                                <a href="${play.link}" target="_blank" class="golden-ticket-btn">
+                                    <i class="fas fa-ticket-alt"></i> Découvrir
+                                </a>
+                            </div>
+                        </div>
+                    </article>
+                `;
+                container.appendChild(section);
+            });
+            
+            setupIntersectionObserver();
+        }
+
+        /* -----------------------------------------------------------
+           INTERACTIONS
+        ----------------------------------------------------------- */
+
+        const audio = document.getElementById("bg-music");
+        const musicBtn = document.getElementById("music-control");
+        const musicIcon = document.getElementById("music-icon");
+
+        // 1. Entrer dans le site (Animation Ticket)
+        function enterTheater() {
+            const intro = document.getElementById('intro-overlay');
+            const main = document.getElementById('main-content');
+            
+            // Animation visuelle de sortie
+            intro.classList.add('intro-fade-out');
+            
+            // Lancer la musique
+            audio.volume = 0.3;
+            audio.play().then(() => {
+                // Pas besoin d'ajouter 'visible' car le bouton est déjà visible par défaut
+            }).catch(e => console.log("Audio requires interaction"));
+
+            setTimeout(() => {
+                intro.style.opacity = '0';
+                intro.style.visibility = 'hidden';
+                main.style.visibility = 'visible';
+                main.style.opacity = '1';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 800);
+        }
+
+        // 2. Toggle Musique ON/OFF
+        function toggleMusic() {
+            if (audio.paused) {
+                audio.play();
+                musicIcon.className = "fas fa-volume-up";
+                musicBtn.style.color = "var(--gold)";
+            } else {
+                audio.pause();
+                musicIcon.className = "fas fa-volume-mute";
+                musicBtn.style.color = "#888"; // Grisé quand coupé
+            }
+        }
+
+        // 3. Scroll Animation
+        function setupIntersectionObserver() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                    }
+                });
+            }, { threshold: 0.15 });
+
+            document.querySelectorAll('.play-card').forEach(card => {
+                observer.observe(card);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', renderPlays);
+
+    </script>
+</body>
+</html>
