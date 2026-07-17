@@ -344,10 +344,12 @@
         s += `<rect x="0" y="0" width="${Wu}" height="${Hu}" rx="2" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.4"/>`;
         const n=Math.max(3,Math.round(el.h/0.09));
         for(let i=1;i<n;i++){ const y=Hu*i/n; s+=`<line x1="1.5" y1="${y}" x2="${Wu-1.5}" y2="${y}" stroke="${col.stroke}" stroke-width="0.8"/>`; }
+        s += state.names? `<text x="${Wu/2}" y="${Hu+13}" font-family="var(--mono)" font-size="9" fill="${col.stroke}" text-anchor="middle" style="text-transform:uppercase;letter-spacing:.06em">${esc(el.name)}</text>`:'';
         break;
       }
       case 'board':{
         s += `<rect x="0" y="0" width="${Wu}" height="${Hu}" rx="1.5" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.6"/>`;
+        s += label(10);
         break;
       }
       case 'shelf':{
@@ -370,12 +372,14 @@
         s += `<line x1="${Wu}" y1="${-wt/2}" x2="${Wu}" y2="${wt/2}" stroke="var(--wall)" stroke-width="2"/>`;
         s += `<line x1="0" y1="0" x2="0" y2="${Wu}" stroke="${col.stroke}" stroke-width="1.6"/>`;              // battant
         s += `<path d="M ${Wu} 0 A ${Wu} ${Wu} 0 0 1 0 ${Wu}" fill="none" stroke="${col.stroke}" stroke-width="1.1" stroke-dasharray="4 3"/>`;
+        s += state.names? `<text x="${Wu/2}" y="${Wu*0.55}" font-family="var(--mono)" font-size="9" fill="${col.stroke}" text-anchor="middle" dominant-baseline="central" style="text-transform:uppercase;letter-spacing:.06em">${esc(el.name)}</text>`:'';
         break;
       }
       case 'window':{
         s += `<rect x="0" y="${-wt/2}" width="${Wu}" height="${wt}" fill="var(--paper)" stroke="${col.stroke}" stroke-width="1.2"/>`;
         s += `<line x1="0" y1="${-wt/6}" x2="${Wu}" y2="${-wt/6}" stroke="${col.stroke}" stroke-width="1.1"/>`;
         s += `<line x1="0" y1="${wt/6}"  x2="${Wu}" y2="${wt/6}"  stroke="${col.stroke}" stroke-width="1.1"/>`;
+        s += state.names? `<text x="${Wu/2}" y="0" font-family="var(--mono)" font-size="9" fill="${col.stroke}" text-anchor="middle" dominant-baseline="central" style="text-transform:uppercase;letter-spacing:.06em">${esc(el.name)}</text>`:'';
         break;
       }
       case 'round':{
