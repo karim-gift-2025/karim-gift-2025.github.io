@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Éditeur de plan — Salle de classe</title>
+<style>
+  :root{
+    --paper:#f6f2e9;        /* sol */
+    --felt:#e5e0d3;         /* planche à dessin */
+    --panel:#fbfaf6;
+    --ink:#23271f;
+    --ink-soft:#5c6154;
+    --line:#d8d1bf;         /* trame fine */
+    --line-strong:#c3baa4;  /* trame 1m */
+    --wall:#2b2f27;
+    --brass:#b0842f;        /* accent / sélection */
+    --brass-soft:#e7d4a6;
+    --measure:#2e5b6b;      /* cotes */
+    --blue:#2d6cb3; --blue-fill:#d6e4f4;
+    --orange:#d9822b; --orange-fill:#f7e2c8;
+    --green:#2f9e44; --green-fill:#c9eccf;
+    --red:#d43a3a;
+    --wood:#a9793f; --wood-fill:#ecd8b6;
+    --grey:#6c7268; --grey-fill:#e4e2d8;
+    --mono: ui-monospace,"SFMono-Regular","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans: system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --radius:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:var(--sans); color:var(--ink); background:var(--felt);
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{display:grid; grid-template-columns:1fr 340px; grid-template-rows:auto 1fr; height:100dvh}
+
+  /* ---------- Header / barre d'outils ---------- */
+  header{
+    grid-column:1 / -1;
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+    padding:10px 16px; background:var(--panel);
+    border-bottom:1px solid var(--line-strong);
+  }
+  .brand{display:flex; align-items:baseline; gap:10px; margin-right:4px}
+  .brand h1{font-size:15px; margin:0; letter-spacing:.02em; font-weight:650}
+  .brand .tag{font-family:var(--mono); font-size:10px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--ink-soft)}
+  .tools{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+  .sep{width:1px; align-self:stretch; background:var(--line-strong); margin:2px 4px}
+  .grp-label{font-family:var(--mono); font-size:9px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--ink-soft); margin-right:2px}
+  button.btn{
+    font-family:var(--sans); font-size:12.5px; color:var(--ink);
+    background:#fff; border:1px solid var(--line-strong); border-radius:8px;
+    padding:6px 10px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+    transition:.12s;
+  }
+  button.btn:hover{border-color:var(--brass); background:#fffdf7}
+  button.btn:active{transform:translateY(1px)}
+  button.btn .ic{font-size:14px; line-height:1}
+  button.btn[aria-pressed="true"]{background:var(--brass); color:#fff; border-color:var(--brass)}
+  button.btn.ghost{background:transparent}
+  button.btn:disabled{opacity:.4; cursor:not-allowed}
+  .add-btn{border-style:dashed}
+
+  /* ---------- Canvas ---------- */
+  .stage{position:relative; overflow:hidden; background:
+      radial-gradient(120% 120% at 30% 10%, #efeadd 0%, var(--felt) 60%, #d9d3c4 100%);}
+  #board{width:100%; height:100%; display:block; touch-action:none}
+  .stage .hint{
+    position:absolute; left:16px; bottom:14px; font-family:var(--mono);
+    font-size:11px; color:var(--ink-soft); letter-spacing:.03em;
+    background:rgba(251,250,246,.72); padding:6px 9px; border-radius:8px;
+    border:1px solid var(--line); pointer-events:none; max-width:60%;
+  }
+  .panel-toggle{display:none}
+
+  /* ---------- Panneau propriétés ---------- */
+  aside{
+    background:var(--panel); border-left:1px solid var(--line-strong);
+    overflow-y:auto; padding:16px 16px 40px;
+  }
+  .card{border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:14px; background:#fff}
+  .card h2{
+    font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--ink-soft); margin:0 0 12px; display:flex; align-items:center; gap:8px;
+  }
+  .card h2::before{content:""; width:14px; height:2px; background:var(--brass); display:inline-block}
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:10px 12px}
+  .field{display:flex; flex-direction:column; gap:4px}
+  .field.full{grid-column:1 / -1}
+  .field label{font-family:var(--mono); font-size:10px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--ink-soft)}
+  .field .unit{font-family:var(--mono); font-size:10px; color:var(--ink-soft)}
+  input[type=text], input[type=number]{
+    font-family:var(--sans); font-size:13px; color:var(--ink);
+    border:1px solid var(--line-strong); border-radius:7px; padding:7px 9px; width:100%; background:#fff;
+  }
+  input:focus{outline:2px solid var(--brass-soft); outline-offset:0; border-color:var(--brass)}
+  .inline{display:flex; align-items:center; gap:8px}
+  .swatches{display:flex; gap:6px; flex-wrap:wrap}
+  .swatch{width:22px; height:22px; border-radius:6px; border:1px solid rgba(0,0,0,.15); cursor:pointer}
+  .swatch[aria-pressed="true"]{outline:2px solid var(--brass); outline-offset:1px}
+  .muted{color:var(--ink-soft); font-size:12px; line-height:1.5}
+  .badge{font-family:var(--mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase;
+    padding:2px 7px; border-radius:999px; border:1px solid var(--line-strong); color:var(--ink-soft)}
+  .badge.fixe{background:#f0ece1}
+  .badge.mobile{background:var(--brass); color:#fff; border-color:var(--brass)}
+  .btn-danger{color:var(--red); border-color:#e6b7b7}
+  .btn-danger:hover{background:#fdf3f3; border-color:var(--red)}
+  .empty-sel{text-align:center; color:var(--ink-soft); padding:10px 6px}
+  .empty-sel .big{font-size:26px; margin-bottom:6px; opacity:.5}
+  .listline{display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:6px 8px; border-radius:7px; cursor:pointer; font-size:12.5px}
+  .listline:hover{background:#f4f1e8}
+  .listline.on{background:var(--brass-soft)}
+  .listline .dot{width:9px; height:9px; border-radius:3px; flex:0 0 auto}
+  .listline .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .listline small{font-family:var(--mono); color:var(--ink-soft)}
+  .kpi{display:flex; gap:16px; flex-wrap:wrap}
+  .kpi div{display:flex; flex-direction:column}
+  .kpi b{font-size:18px; font-weight:650}
+  .kpi span{font-family:var(--mono); font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft)}
+
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr; grid-template-rows:auto 1fr auto}
+    aside{max-height:46dvh; border-left:none; border-top:1px solid var(--line-strong)}
+    aside.hidden{display:none}
+    .panel-toggle{display:inline-flex}
+    .brand h1{font-size:14px}
+    .stage .hint{max-width:80%}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1>Plan de salle</h1>
+      <span class="tag">éditeur · échelle réelle</span>
+    </div>
+    <div class="tools">
+      <span class="grp-label">Ajouter</span>
+      <button class="btn add-btn" data-add="table"><span class="ic">▭</span>Table</button>
+      <button class="btn add-btn" data-add="ronde"><span class="ic">◯</span>Table ronde</button>
+      <button class="btn add-btn" data-add="chaise"><span class="ic">▫</span>Chaise</button>
+      <button class="btn add-btn" data-add="bureau"><span class="ic">⌗</span>Bureau</button>
+      <button class="btn add-btn" data-add="rangement"><span class="ic">▤</span>Rangement</button>
+      <button class="btn add-btn" data-add="zone"><span class="ic">⿴</span>Zone</button>
+
+      <span class="sep"></span>
+      <button class="btn ghost" id="undo" title="Annuler (Ctrl+Z)"><span class="ic">↶</span></button>
+      <button class="btn ghost" id="redo" title="Rétablir (Ctrl+Y)"><span class="ic">↷</span></button>
+      <button class="btn ghost" id="dup" title="Dupliquer (Ctrl+D)"><span class="ic">⧉</span></button>
+
+      <span class="sep"></span>
+      <button class="btn ghost" id="tGrid" aria-pressed="true">Grille</button>
+      <button class="btn ghost" id="tSnap" aria-pressed="true">Aimanter</button>
+      <button class="btn ghost" id="tNames" aria-pressed="true">Noms</button>
+      <button class="btn ghost" id="tDims" aria-pressed="false">Cotes meubles</button>
+
+      <span class="sep"></span>
+      <button class="btn" id="expSvg"><span class="ic">⭳</span>SVG</button>
+      <button class="btn" id="expPng"><span class="ic">⭳</span>PNG</button>
+      <button class="btn ghost" id="saveJson">Enregistrer</button>
+      <button class="btn ghost" id="loadJson">Ouvrir</button>
+      <input type="file" id="fileJson" accept="application/json,.json" hidden>
+
+      <span class="sep"></span>
+      <button class="btn ghost panel-toggle" id="togglePanel">Panneau</button>
+    </div>
+  </header>
+
+  <div class="stage">
+    <svg id="board" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="hint">Glissez un élément pour le déplacer · poignées pour redimensionner · poignée ronde pour pivoter · Suppr pour retirer.</div>
+  </div>
+
+  <aside id="panel">
+    <div class="card">
+      <h2>Dimensions de la salle</h2>
+      <div class="row">
+        <div class="field">
+          <label>Largeur <span class="unit">m</span></label>
+          <input type="number" id="roomW" step="0.05" min="1">
+        </div>
+        <div class="field">
+          <label>Profondeur <span class="unit">m</span></label>
+          <input type="number" id="roomH" step="0.05" min="1">
+        </div>
+      </div>
+      <div class="kpi" style="margin-top:12px">
+        <div><b id="kArea">—</b><span>surface m²</span></div>
+        <div><b id="kCount">—</b><span>meubles</span></div>
+        <div><b id="kScale">—</b><span>échelle</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Élément sélectionné</h2>
+      <div id="selBox"></div>
+    </div>
+
+    <div class="card">
+      <h2>Éléments du plan</h2>
+      <div id="list"></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+"use strict";
+(function(){
+  const PPM = 100;                 // pixels SVG par mètre
+  const WT  = 0.15;                // épaisseur murs / portes / fenêtres (m)
+  const svg = document.getElementById('board');
+
+  // ----- marges du viewBox (zone des cotes + boussole) -----
+  const M = {l:150, t:95, r:82, b:104};
+
+  // ---------- Palette sémantique ----------
+  const COLORS = {
+    wood:  {stroke:'#a9793f', fill:'#ecd8b6'},
+    blue:  {stroke:'#2d6cb3', fill:'#d6e4f4'},
+    orange:{stroke:'#d9822b', fill:'#f7e2c8'},
+    green: {stroke:'#2f9e44', fill:'#c9eccf'},
+    grey:  {stroke:'#6c7268', fill:'#e4e2d8'},
+    red:   {stroke:'#d43a3a', fill:'#f6d7d7'},
+    ink:   {stroke:'#23271f', fill:'#e9e6dc'}
+  };
+  const SWATCH_KEYS = ['wood','blue','orange','green','grey','red','ink'];
+
+  // Résolution des variables CSS -> hex concret (rendu écran + export portable)
+  const CV = {
+    '--paper':'#f6f2e9','--panel':'#fbfaf6','--ink':'#23271f','--ink-soft':'#5c6154',
+    '--line':'#d8d1bf','--line-strong':'#c3baa4','--wall':'#2b2f27','--brass':'#b0842f',
+    '--measure':'#2e5b6b','--wood':'#a9793f',
+    '--mono':"ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace"
+  };
+  const resolveVars = s => s.replace(/var\((--[a-z-]+)\)/g, (m,k)=> CV[k]||m);
+
+  // ---------- État initial (éléments fixes reconstruits depuis le SVG source) ----------
+  function tl(x,y,w,h){ return {cx:x+w/2, cy:y+h/2, w, h}; }  // top-left -> centre
+  let uid = 1;
+  const nid = ()=> 'e'+(uid++);
+
+  function makeInitial(){
+    const E = [];
+    const push = (o)=>{ o.id=nid(); o.rot = o.rot||0; E.push(o); };
+
+    // --- éléments fixes ---
+    push({name:'Évier',        cat:'fixe', shape:'sink',    color:'grey',   ...tl(5.55,0.00,0.95,0.55)});
+    push({name:'Prise ethernet',cat:'fixe',shape:'socket',  color:'orange', ...tl(2.62,0.00,0.16,0.12)});
+    push({name:'Radiateur bas', cat:'fixe',shape:'radiator',color:'orange', ...tl(7.36,1.30,0.14,0.62)});
+    push({name:'Radiateur bas', cat:'fixe',shape:'radiator',color:'orange', ...tl(7.36,4.30,0.14,0.62)});
+    push({name:'Tableau',       cat:'fixe',shape:'board',   color:'green',  ...tl(2.35,5.90,4.10,0.10)});
+    push({name:'Volet tableau', cat:'fixe',shape:'board',   color:'green',  cx:5.75,cy:5.62,w:0.85,h:0.07, rot:-30});
+    push({name:'Volet tableau', cat:'fixe',shape:'board',   color:'green',  cx:2.85,cy:5.62,w:0.85,h:0.07, rot:30});
+    push({name:'Bibliothèque fixée', cat:'fixe',shape:'shelf',color:'blue', ...tl(0.00,5.68,1.67,0.32)});
+
+    // portes (largeur = w ; symbole de battant)
+    push({name:'Porte', cat:'fixe', shape:'door', color:'red', cx:6.70, cy:0.40, w:0.80, h:0.80, rot:0});    // mur nord
+    push({name:'Porte', cat:'fixe', shape:'door', color:'red', cx:6.70, cy:5.60, w:0.80, h:0.80, rot:180});  // mur sud
+    push({name:'Porte', cat:'fixe', shape:'door', color:'red', cx:0.40, cy:4.90, w:0.80, h:0.80, rot:270});  // mur ouest
+
+    // vitres hautes (fenêtres) — symétriques, orientation verticale (rot 90)
+    push({name:'Vitres hautes', cat:'fixe', shape:'window', color:'blue', cx:0.075,      cy:2.35, w:3.70, h:WT, rot:90});
+    push({name:'Vitres hautes', cat:'fixe', shape:'window', color:'blue', cx:7.5-0.075,  cy:2.95, w:4.90, h:WT, rot:90});
+
+    return E;
+  }
+
+  const state = {
+    room:{w:7.5, h:6.0},
+    els: makeInitial(),
+    sel: null,
+    snap:true, snapStep:0.05,
+    grid:true, names:true, dims:false
+  };
+
+  // ---------- Historique ----------
+  const history=[]; let hIdx=-1;
+  function snapshot(){ return JSON.stringify({room:state.room, els:state.els, uid}); }
+  function pushHistory(){
+    history.splice(hIdx+1);
+    history.push(snapshot());
+    if(history.length>60) history.shift();
+    hIdx=history.length-1;
+    updateHistBtns();
+  }
+  function restore(json){
+    const s=JSON.parse(json);
+    state.room=s.room; state.els=s.els; uid=s.uid;
+    if(!state.els.find(e=>e.id===state.sel)) state.sel=null;
+    render(); syncPanel();
+  }
+  function undo(){ if(hIdx>0){ hIdx--; restore(history[hIdx]); updateHistBtns(); } }
+  function redo(){ if(hIdx<history.length-1){ hIdx++; restore(history[hIdx]); updateHistBtns(); } }
+  function updateHistBtns(){
+    document.getElementById('undo').disabled = hIdx<=0;
+    document.getElementById('redo').disabled = hIdx>=history.length-1;
+  }
+
+  // ---------- Utilitaires géométrie ----------
+  const rad = d=>d*Math.PI/180;
+  function R(v,deg){ const c=Math.cos(rad(deg)), s=Math.sin(rad(deg)); return {x:v.x*c - v.y*s, y:v.x*s + v.y*c}; }
+  function snapV(v){ return state.snap ? Math.round(v/state.snapStep)*state.snapStep : v; }
+  const fmt = v => (Math.round(v*100)/100).toFixed(2);
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  function getMeters(evt){
+    const ctm = svg.getScreenCTM().inverse();
+    const p = svg.createSVGPoint(); p.x=evt.clientX; p.y=evt.clientY;
+    const u = p.matrixTransform(ctm);
+    return {x:u.x/PPM, y:u.y/PPM};
+  }
+
+  // ---------- Rendu d'un élément (SVG local, unités = mètres*PPM) ----------
+  function shapeMarkup(el){
+    const Wu=el.w*PPM, Hu=el.h*PPM, wt=WT*PPM;
+    const col = COLORS[el.color]||COLORS.wood;
+    let s='';
+    const label = (fs=11)=> state.names ?
+      `<text x="${Wu/2}" y="${Hu/2}" font-family="var(--mono)" font-size="${fs}"
+        fill="${col.stroke}" text-anchor="middle" dominant-baseline="central"
+        style="text-transform:uppercase;letter-spacing:.06em">${esc(el.name)}</text>` : '';
+
+    switch(el.shape){
+      case 'sink':{
+        s += `<rect x="0" y="0" width="${Wu}" height="${Hu}" rx="4" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.5"/>`;
+        s += `<rect x="${Wu*0.16}" y="${Hu*0.24}" width="${Wu*0.68}" height="${Hu*0.56}" rx="6" fill="none" stroke="${col.stroke}" stroke-width="1.2"/>`;
+        s += `<circle cx="${Wu/2}" cy="${Hu*0.16}" r="3.2" fill="none" stroke="${col.stroke}" stroke-width="1.2"/>`;
+        s += state.names? `<text x="${Wu/2}" y="${Hu+13}" font-family="var(--mono)" font-size="10" fill="${col.stroke}" text-anchor="middle" style="text-transform:uppercase;letter-spacing:.08em">${esc(el.name)}</text>`:'';
+        break;
+      }
+      case 'radiator':{
+        s += `<rect x="0" y="0" width="${Wu}" height="${Hu}" rx="2" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.4"/>`;
+        const n=Math.max(3,Math.round(el.h/0.09));
+        for(let i=1;i<n;i++){ const y=Hu*i/n; s+=`<line x1="1.5" y1="${y}" x2="${Wu-1.5}" y2="${y}" stroke="${col.stroke}" stroke-width="0.8"/>`; }
+        break;
+      }
+      case 'board':{
+        s += `<rect x="0" y="0" width="${Wu}" height="${Hu}" rx="1.5" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.6"/>`;
+        break;
+      }
+      case 'shelf':{
+        s += `<rect x="0" y="0" width="${Wu}" height="${Hu}" rx="2" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.6"/>`;
+        const n=Math.max(2,Math.round(el.w/0.42));
+        for(let i=1;i<n;i++){ const x=Wu*i/n; s+=`<line x1="${x}" y1="1.5" x2="${x}" y2="${Hu-1.5}" stroke="${col.stroke}" stroke-width="1"/>`; }
+        s += label(10);
+        break;
+      }
+      case 'socket':{
+        s += `<rect x="0" y="0" width="${Wu}" height="${Hu}" rx="2" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.2"/>`;
+        s += `<circle cx="${Wu/2}" cy="${Hu/2}" r="2" fill="${col.stroke}"/>`;
+        s += state.names? `<text x="${Wu/2}" y="${Hu+12}" font-family="var(--mono)" font-size="9" fill="${col.stroke}" text-anchor="middle" style="letter-spacing:.06em">ETH</text>`:'';
+        break;
+      }
+      case 'door':{
+        // symbole canonique : mur le long de l'axe x (y=0), pièce vers +y
+        s += `<rect x="0" y="${-wt/2}" width="${Wu}" height="${wt}" fill="var(--paper)"/>`;                    // ouverture
+        s += `<line x1="0" y1="${-wt/2}" x2="0" y2="${wt/2}" stroke="var(--wall)" stroke-width="2"/>`;         // jambage
+        s += `<line x1="${Wu}" y1="${-wt/2}" x2="${Wu}" y2="${wt/2}" stroke="var(--wall)" stroke-width="2"/>`;
+        s += `<line x1="0" y1="0" x2="0" y2="${Wu}" stroke="${col.stroke}" stroke-width="1.6"/>`;              // battant
+        s += `<path d="M ${Wu} 0 A ${Wu} ${Wu} 0 0 1 0 ${Wu}" fill="none" stroke="${col.stroke}" stroke-width="1.1" stroke-dasharray="4 3"/>`;
+        break;
+      }
+      case 'window':{
+        s += `<rect x="0" y="${-wt/2}" width="${Wu}" height="${wt}" fill="var(--paper)" stroke="${col.stroke}" stroke-width="1.2"/>`;
+        s += `<line x1="0" y1="${-wt/6}" x2="${Wu}" y2="${-wt/6}" stroke="${col.stroke}" stroke-width="1.1"/>`;
+        s += `<line x1="0" y1="${wt/6}"  x2="${Wu}" y2="${wt/6}"  stroke="${col.stroke}" stroke-width="1.1"/>`;
+        break;
+      }
+      case 'round':{
+        s += `<ellipse cx="${Wu/2}" cy="${Hu/2}" rx="${Wu/2}" ry="${Hu/2}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.6"/>`;
+        s += label();
+        break;
+      }
+      case 'chair':{
+        s += `<rect x="1" y="1" width="${Wu-2}" height="${Hu-2}" rx="3" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.4"/>`;
+        s += `<rect x="1" y="1" width="${Wu-2}" height="${Math.min(Hu*0.28,7)}" rx="2" fill="${col.stroke}" opacity=".55"/>`; // dossier
+        break;
+      }
+      case 'desk':{
+        s += `<rect x="0" y="0" width="${Wu}" height="${Hu}" rx="3" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.6"/>`;
+        s += `<rect x="${Wu*0.62}" y="${Hu*0.15}" width="${Wu*0.3}" height="${Hu*0.7}" rx="2" fill="none" stroke="${col.stroke}" stroke-width="1"/>`;
+        s += label();
+        break;
+      }
+      case 'zone':{
+        s += `<rect x="0" y="0" width="${Wu}" height="${Hu}" rx="6" fill="${col.stroke}" fill-opacity="0.06" stroke="${col.stroke}" stroke-width="1.4" stroke-dasharray="7 5"/>`;
+        s += label();
+        break;
+      }
+      default:{ // rect
+        s += `<rect x="0" y="0" width="${Wu}" height="${Hu}" rx="3" fill="${col.fill}" stroke="${col.stroke}" stroke-width="1.6"/>`;
+        s += label();
+      }
+    }
+    return s;
+  }
+
+  function elementGroup(el, forExport){
+    const Wu=el.w*PPM, Hu=el.h*PPM;
+    const tf = `translate(${el.cx*PPM} ${el.cy*PPM}) rotate(${el.rot}) translate(${-Wu/2} ${-Hu/2})`;
+    let inner = shapeMarkup(el);
+    // cotes du meuble
+    if(state.dims && el.shape!=='window' && el.shape!=='socket'){
+      inner += `<text x="${Wu/2}" y="${-6}" font-family="var(--mono)" font-size="9.5" fill="var(--measure)" text-anchor="middle">${fmt(el.w)}</text>`;
+      inner += `<text x="${-6}" y="${Hu/2}" font-family="var(--mono)" font-size="9.5" fill="var(--measure)" text-anchor="middle" transform="rotate(-90 ${-6} ${Hu/2})">${fmt(el.h)}</text>`;
+    }
+    // zone de capture (au dessus du dessin)
+    if(!forExport){
+      const hitH = Math.max(Hu, 20), hitW = Math.max(Wu, 20);
+      inner += `<rect x="${(Wu-hitW)/2}" y="${(Hu-hitH)/2}" width="${hitW}" height="${hitH}" fill="transparent" data-role="body" data-id="${el.id}" style="cursor:move"/>`;
+    }
+    return `<g transform="${tf}" data-id="${el.id}">${inner}</g>`;
+  }
+
+  // ---------- overlay de sélection ----------
+  function selectionOverlay(el){
+    const Wu=el.w*PPM, Hu=el.h*PPM, H=9;
+    const tf = `translate(${el.cx*PPM} ${el.cy*PPM}) rotate(${el.rot}) translate(${-Wu/2} ${-Hu/2})`;
+    const handles=[['nw',0,0],['n',Wu/2,0],['ne',Wu,0],['e',Wu,Hu/2],['se',Wu,Hu],['s',Wu/2,Hu],['sw',0,Hu],['w',0,Hu/2]];
+    let g = `<rect x="0" y="0" width="${Wu}" height="${Hu}" fill="none" stroke="var(--brass)" stroke-width="1.3" stroke-dasharray="5 4"/>`;
+    // poignée de rotation
+    g += `<line x1="${Wu/2}" y1="0" x2="${Wu/2}" y2="${-26}" stroke="var(--brass)" stroke-width="1.2"/>`;
+    g += `<circle cx="${Wu/2}" cy="${-26}" r="6" fill="#fff" stroke="var(--brass)" stroke-width="1.6" data-role="rotate" data-id="${el.id}" style="cursor:grab"/>`;
+    for(const [k,x,y] of handles){
+      const curs = (k==='n'||k==='s')?'ns-resize':(k==='e'||k==='w')?'ew-resize':(k==='ne'||k==='sw')?'nesw-resize':'nwse-resize';
+      g += `<rect x="${x-H/2}" y="${y-H/2}" width="${H}" height="${H}" rx="2" fill="#fff" stroke="var(--brass)" stroke-width="1.6"
+              data-role="handle" data-handle="${k}" data-id="${el.id}" style="cursor:${curs}"/>`;
+    }
+    return `<g transform="${tf}">${g}</g>`;
+  }
+
+  // ---------- décor : murs, cotes, boussole, cartouche ----------
+  function chrome(forExport){
+    const w=state.room.w, h=state.room.h, Wu=w*PPM, Hu=h*PPM, wt=WT*PPM;
+    let s='';
+
+    // sol
+    s += `<rect x="0" y="0" width="${Wu}" height="${Hu}" fill="var(--paper)"/>`;
+
+    // grille
+    if(state.grid){
+      let g='';
+      for(let x=0;x<=w+1e-6;x+=0.5){ const X=x*PPM; const major=Math.abs(x-Math.round(x))<1e-6;
+        g+=`<line x1="${X}" y1="0" x2="${X}" y2="${Hu}" stroke="${major?'var(--line-strong)':'var(--line)'}" stroke-width="${major?1:0.6}"/>`; }
+      for(let y=0;y<=h+1e-6;y+=0.5){ const Y=y*PPM; const major=Math.abs(y-Math.round(y))<1e-6;
+        g+=`<line x1="0" y1="${Y}" x2="${Wu}" y2="${Y}" stroke="${major?'var(--line-strong)':'var(--line)'}" stroke-width="${major?1:0.6}"/>`; }
+      s += `<g opacity="0.9">${g}</g>`;
+    }
+
+    // titre au sol
+    s += `<text x="${Wu/2}" y="${Hu*0.42}" font-family="var(--mono)" font-size="15" fill="var(--ink-soft)"
+            text-anchor="middle" opacity=".5" style="letter-spacing:.22em">SALLE DE CLASSE</text>`;
+
+    // murs (trait épais centré sur le contour intérieur)
+    s += `<rect x="0" y="0" width="${Wu}" height="${Hu}" fill="none" stroke="var(--wall)" stroke-width="${wt}"/>`;
+    s += `<rect x="0" y="0" width="${Wu}" height="${Hu}" fill="none" stroke="var(--wall)" stroke-width="1"/>`;
+
+    // ----- cotes générales (signature : traits fins + tirets + valeur mono) -----
+    const dimTop = -46, dimLeft = -52;
+    // largeur (haut)
+    s += `<g stroke="var(--measure)" stroke-width="1">
+            <line x1="0" y1="${dimTop}" x2="${Wu}" y2="${dimTop}"/>
+            <line x1="0" y1="${dimTop-6}" x2="0" y2="${dimTop+6}"/>
+            <line x1="${Wu}" y1="${dimTop-6}" x2="${Wu}" y2="${dimTop+6}"/>
+            <line x1="0" y1="0" x2="0" y2="${dimTop}" stroke-dasharray="3 4" stroke-width="0.8"/>
+            <line x1="${Wu}" y1="0" x2="${Wu}" y2="${dimTop}" stroke-dasharray="3 4" stroke-width="0.8"/>
+          </g>
+          <rect x="${Wu/2-40}" y="${dimTop-13}" width="80" height="20" rx="4" fill="var(--panel)" stroke="var(--line-strong)"/>
+          <text x="${Wu/2}" y="${dimTop-3}" font-family="var(--mono)" font-size="12.5" fill="var(--measure)" text-anchor="middle">${fmt(w)} m</text>`;
+    // profondeur (gauche)
+    s += `<g stroke="var(--measure)" stroke-width="1">
+            <line x1="${dimLeft}" y1="0" x2="${dimLeft}" y2="${Hu}"/>
+            <line x1="${dimLeft-6}" y1="0" x2="${dimLeft+6}" y2="0"/>
+            <line x1="${dimLeft-6}" y1="${Hu}" x2="${dimLeft+6}" y2="${Hu}"/>
+            <line x1="0" y1="0" x2="${dimLeft}" y2="0" stroke-dasharray="3 4" stroke-width="0.8"/>
+            <line x1="0" y1="${Hu}" x2="${dimLeft}" y2="${Hu}" stroke-dasharray="3 4" stroke-width="0.8"/>
+          </g>
+          <g transform="translate(${dimLeft-3} ${Hu/2})">
+            <rect x="-40" y="-10" width="80" height="20" rx="4" fill="var(--panel)" stroke="var(--line-strong)" transform="rotate(-90)"/>
+            <text transform="rotate(-90)" font-family="var(--mono)" font-size="12.5" fill="var(--measure)" text-anchor="middle" dominant-baseline="central">${fmt(h)} m</text>
+          </g>`;
+
+    // boussole / orientation (nord à gauche comme le plan source)
+    s += `<g transform="translate(${dimLeft-58} ${Hu*0.5})" font-family="var(--mono)" fill="var(--ink-soft)">
+            <text transform="rotate(-90)" font-size="11" text-anchor="middle" style="letter-spacing:.18em">COULOIR NORD</text>
+          </g>`;
+    s += `<g transform="translate(${Wu+46} ${Hu*0.5})" font-family="var(--mono)" fill="var(--ink-soft)">
+            <text transform="rotate(90)" font-size="11" text-anchor="middle" style="letter-spacing:.24em">SUD</text>
+          </g>`;
+
+    // cartouche (bas-droite)
+    const area=(w*h).toFixed(1), count=state.els.filter(e=>e.cat==='mobile').length;
+    const cbW=214, cbH=64, cbx=Wu-cbW, cby=Hu+22;
+    s += `<g transform="translate(${cbx} ${cby})">
+            <rect x="0" y="0" width="${cbW}" height="${cbH}" rx="6" fill="var(--panel)" stroke="var(--line-strong)"/>
+            <line x1="0" y1="22" x2="${cbW}" y2="22" stroke="var(--line)"/>
+            <line x1="${cbW*0.5}" y1="22" x2="${cbW*0.5}" y2="${cbH}" stroke="var(--line)"/>
+            <text x="10" y="15" font-family="var(--mono)" font-size="10" fill="var(--ink)" style="letter-spacing:.14em">PLAN — SALLE DE CLASSE</text>
+            <text x="10" y="38" font-family="var(--mono)" font-size="9" fill="var(--ink-soft)" style="letter-spacing:.1em">DIMENSIONS</text>
+            <text x="10" y="54" font-family="var(--mono)" font-size="13" fill="var(--measure)">${fmt(w)} × ${fmt(h)} m</text>
+            <text x="${cbW*0.5+10}" y="38" font-family="var(--mono)" font-size="9" fill="var(--ink-soft)" style="letter-spacing:.1em">SURFACE · MEUBLES</text>
+            <text x="${cbW*0.5+10}" y="54" font-family="var(--mono)" font-size="13" fill="var(--measure)">${area} m² · ${count}</text>
+          </g>`;
+    return s;
+  }
+
+  // ---------- rendu complet ----------
+  function render(){
+    const Wu=state.room.w*PPM, Hu=state.room.h*PPM;
+    svg.setAttribute('viewBox', `${-M.l} ${-M.t} ${Wu+M.l+M.r} ${Hu+M.t+M.b}`);
+    svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+    let s = chrome(false);
+    for(const el of state.els) s += elementGroup(el,false);
+    const sel = state.els.find(e=>e.id===state.sel);
+    if(sel) s += selectionOverlay(sel);
+    svg.innerHTML = resolveVars(s);
+    updateKpis();
+    updateScale();
+    renderList();
+  }
+
+  function updateKpis(){
+    document.getElementById('kArea').textContent = (state.room.w*state.room.h).toFixed(1);
+    document.getElementById('kCount').textContent = state.els.filter(e=>e.cat==='mobile').length;
+  }
+  function updateScale(){
+    const svgW = svg.getBoundingClientRect().width || 1;
+    const vbW = state.room.w*PPM + M.l + M.r;
+    const pxPerMeter = (svgW/vbW) * PPM;      // px CSS écran pour 1 m réel
+    const mmScreen = pxPerMeter * 0.264583;   // à 96 dpi
+    const N = Math.max(1, Math.round(1000/mmScreen));
+    document.getElementById('kScale').textContent = '1:'+N;
+  }
+
+  // ---------- liste des éléments ----------
+  function renderList(){
+    const box=document.getElementById('list');
+    const order=[...state.els].sort((a,b)=> (a.cat===b.cat?0:a.cat==='mobile'?-1:1));
+    box.innerHTML = order.map(el=>{
+      const c=COLORS[el.color]||COLORS.wood;
+      return `<div class="listline ${el.id===state.sel?'on':''}" data-jump="${el.id}">
+        <span class="dot" style="background:${c.stroke}"></span>
+        <span class="nm">${esc(el.name)}</span>
+        <small>${fmt(el.w)}×${fmt(el.h)}</small>
+        <span class="badge ${el.cat}">${el.cat}</span>
+      </div>`;
+    }).join('');
+    box.querySelectorAll('[data-jump]').forEach(n=>n.onclick=()=>{ select(n.dataset.jump); });
+  }
+
+  // ---------- panneau de propriétés ----------
+  function selPanel(){
+    const el=state.els.find(e=>e.id===state.sel);
+    const box=document.getElementById('selBox');
+    if(!el){
+      box.innerHTML=`<div class="empty-sel"><div class="big">⌖</div>Aucun élément sélectionné.<br>Cliquez un objet du plan.</div>`;
+      return;
+    }
+    const x=el.cx-el.w/2, y=el.cy-el.h/2;
+    const sw = SWATCH_KEYS.map(k=>`<div class="swatch" data-col="${k}" aria-pressed="${el.color===k}" style="background:${COLORS[k].fill};border-color:${COLORS[k].stroke}"></div>`).join('');
+    box.innerHTML = `
+      <div class="field full">
+        <label>Nom</label>
+        <input type="text" id="pName" value="${esc(el.name)}">
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="field"><label>X (gauche) <span class="unit">m</span></label><input type="number" id="pX" step="0.05" value="${fmt(x)}"></div>
+        <div class="field"><label>Y (haut) <span class="unit">m</span></label><input type="number" id="pY" step="0.05" value="${fmt(y)}"></div>
+        <div class="field"><label>Largeur <span class="unit">m</span></label><input type="number" id="pW" step="0.05" min="0.1" value="${fmt(el.w)}"></div>
+        <div class="field"><label>${el.shape==='round'?'Hauteur (Ø)':'Profondeur'} <span class="unit">m</span></label><input type="number" id="pH" step="0.05" min="0.1" value="${fmt(el.h)}"></div>
+        <div class="field"><label>Rotation <span class="unit">°</span></label><input type="number" id="pR" step="5" value="${Math.round(el.rot)}"></div>
+        <div class="field">
+          <label>Type</label>
+          <div class="inline"><span class="badge ${el.cat}">${el.cat}</span>
+          <button class="btn ghost" id="pToggleCat" style="padding:4px 8px;font-size:11px">↔ ${el.cat==='mobile'?'fixe':'mobile'}</button></div>
+        </div>
+      </div>
+      <div class="field full" style="margin-top:10px"><label>Couleur</label><div class="swatches">${sw}</div></div>
+      <div class="inline" style="margin-top:14px">
+        <button class="btn" id="pDup" style="flex:1"><span class="ic">⧉</span> Dupliquer</button>
+        <button class="btn btn-danger" id="pDel" style="flex:1"><span class="ic">🗑</span> Supprimer</button>
+      </div>
+      <p class="muted" style="margin:12px 0 0">Astuce : les flèches du clavier déplacent l'élément d'un pas (${state.snapStep} m).</p>
+    `;
+
+    const commit=()=>{ render(); selPanel(); pushHistory(); };
+    const nameEl=box.querySelector('#pName');
+    nameEl.oninput=()=>{ el.name=nameEl.value; renderList(); };
+    nameEl.onchange=()=>pushHistory();
+
+    const bindNum=(sel,fn)=>{ const n=box.querySelector(sel); n.onchange=()=>{ fn(parseFloat(n.value)); commit(); }; };
+    bindNum('#pX',v=>{ if(!isNaN(v)) el.cx=v+el.w/2; });
+    bindNum('#pY',v=>{ if(!isNaN(v)) el.cy=v+el.h/2; });
+    bindNum('#pW',v=>{ if(!isNaN(v)&&v>=0.05){ const l=el.cx-el.w/2; el.w=v; el.cx=l+v/2; } });
+    bindNum('#pH',v=>{ if(!isNaN(v)&&v>=0.05){ const t=el.cy-el.h/2; el.h=v; el.cy=t+v/2; } });
+    bindNum('#pR',v=>{ if(!isNaN(v)) el.rot=v; });
+
+    box.querySelector('#pToggleCat').onclick=()=>{ el.cat = el.cat==='mobile'?'fixe':'mobile'; commit(); };
+    box.querySelectorAll('.swatch').forEach(sw=>sw.onclick=()=>{ el.color=sw.dataset.col; commit(); });
+    box.querySelector('#pDup').onclick=()=>duplicate();
+    box.querySelector('#pDel').onclick=()=>removeSel();
+  }
+
+  function syncPanel(){
+    document.getElementById('roomW').value=fmt(state.room.w);
+    document.getElementById('roomH').value=fmt(state.room.h);
+    selPanel();
+    updateScale();
+  }
+
+  // ---------- sélection ----------
+  function select(id){ state.sel=id; render(); selPanel(); }
+  function deselect(){ state.sel=null; render(); selPanel(); }
+
+  // ---------- ajout / suppression / duplication ----------
+  const PRESETS={
+    table:    {name:'Table',    shape:'rect',  color:'wood',  w:1.20,h:0.60},
+    ronde:    {name:'Table ronde',shape:'round',color:'wood', w:1.10,h:1.10},
+    chaise:   {name:'Chaise',   shape:'chair', color:'grey',  w:0.45,h:0.45},
+    bureau:   {name:'Bureau',   shape:'desk',  color:'wood',  w:1.40,h:0.70},
+    rangement:{name:'Rangement',shape:'rect',  color:'grey',  w:1.00,h:0.45},
+    zone:     {name:'Zone',     shape:'zone',  color:'grey',  w:2.00,h:1.50}
+  };
+  const counters={};
+  function addElement(kind){
+    const p=PRESETS[kind]; if(!p) return;
+    counters[p.name]=(counters[p.name]||0)+1;
+    const el={ id:nid(), cat:'mobile', rot:0,
+      name:`${p.name} ${counters[p.name]}`, shape:p.shape,
+      color:p.color, w:p.w, h:p.h, cx:state.room.w/2, cy:state.room.h/2 };
+    state.els.push(el); select(el.id); pushHistory();
+  }
+  function duplicate(){
+    const el=state.els.find(e=>e.id===state.sel); if(!el) return;
+    const c=JSON.parse(JSON.stringify(el)); c.id=nid(); c.cx+=0.3; c.cy+=0.3; c.name=el.name+' (copie)';
+    state.els.push(c); select(c.id); pushHistory();
+  }
+  function removeSel(){
+    const i=state.els.findIndex(e=>e.id===state.sel); if(i<0) return;
+    state.els.splice(i,1); state.sel=null; render(); selPanel(); pushHistory();
+  }
+
+  // ---------- interactions pointeur (déplacer / redimensionner / pivoter) ----------
+  let drag=null;
+  svg.addEventListener('pointerdown', e=>{
+    const t=e.target.closest('[data-role]');
+    if(!t){ deselect(); return; }
+    const id=t.dataset.id; const el=state.els.find(x=>x.id===id); if(!el) return;
+    select(id);
+    const role=t.dataset.role;
+    const m=getMeters(e);
+    svg.setPointerCapture(e.pointerId);
+    if(role==='body'){
+      drag={mode:'move', el, start:m, cx0:el.cx, cy0:el.cy};
+    } else if(role==='handle'){
+      const hmap={nw:[0,0],n:[.5,0],ne:[1,0],e:[1,.5],se:[1,1],s:[.5,1],sw:[0,1],w:[0,.5]};
+      const [hx,hy]=hmap[t.dataset.handle];
+      const ax=(hx===.5)?.5:1-hx, ay=(hy===.5)?.5:1-hy;
+      const anchorWorld={ x: el.cx + R({x:(ax-.5)*el.w, y:(ay-.5)*el.h}, el.rot).x,
+                          y: el.cy + R({x:(ax-.5)*el.w, y:(ay-.5)*el.h}, el.rot).y };
+      drag={mode:'resize', el, hx,hy,ax,ay, anchorWorld, rot:el.rot};
+    } else if(role==='rotate'){
+      drag={mode:'rotate', el};
+    }
+    e.preventDefault();
+  });
+
+  window.addEventListener('pointermove', e=>{
+    if(!drag) return;
+    const m=getMeters(e); const el=drag.el;
+    if(drag.mode==='move'){
+      let nx=drag.cx0+(m.x-drag.start.x), ny=drag.cy0+(m.y-drag.start.y);
+      // aimanter le coin haut-gauche
+      let l=nx-el.w/2, top=ny-el.h/2;
+      l=snapV(l); top=snapV(top);
+      el.cx=l+el.w/2; el.cy=top+el.h/2;
+    } else if(drag.mode==='resize'){
+      const d=R({x:m.x-drag.anchorWorld.x, y:m.y-drag.anchorWorld.y}, -drag.rot);
+      let nw=el.w, nh=el.h;
+      if(drag.hx!==.5){ nw=(drag.hx===1)? d.x : -d.x; nw=Math.max(0.1, snapV(nw)); }
+      if(drag.hy!==.5){ nh=(drag.hy===1)? d.y : -d.y; nh=Math.max(0.1, snapV(nh)); }
+      el.w=nw; el.h=nh;
+      const off=R({x:(.5-drag.ax)*nw, y:(.5-drag.ay)*nh}, drag.rot);
+      el.cx=drag.anchorWorld.x+off.x; el.cy=drag.anchorWorld.y+off.y;
+    } else if(drag.mode==='rotate'){
+      let deg=Math.atan2(m.y-el.cy, m.x-el.cx)*180/Math.PI + 90;
+      if(state.snap) deg=Math.round(deg/5)*5;
+      el.rot=((deg%360)+360)%360;
+    }
+    render();
+  });
+
+  window.addEventListener('pointerup', e=>{
+    if(drag){ drag=null; selPanel(); pushHistory(); }
+  });
+
+  // ---------- clavier ----------
+  window.addEventListener('keydown', e=>{
+    const typing=/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+    if(typing) return;
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); return; }
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){ e.preventDefault(); duplicate(); return; }
+    const el=state.els.find(x=>x.id===state.sel); if(!el) return;
+    if(e.key==='Delete'||e.key==='Backspace'){ e.preventDefault(); removeSel(); return; }
+    const step=state.snapStep;
+    if(e.key==='ArrowLeft'){ el.cx-=step; }
+    else if(e.key==='ArrowRight'){ el.cx+=step; }
+    else if(e.key==='ArrowUp'){ el.cy-=step; }
+    else if(e.key==='ArrowDown'){ el.cy+=step; }
+    else return;
+    e.preventDefault(); render(); selPanel(); pushHistory();
+  });
+
+  // ---------- barre d'outils ----------
+  document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addElement(b.dataset.add));
+  document.getElementById('undo').onclick=undo;
+  document.getElementById('redo').onclick=redo;
+  document.getElementById('dup').onclick=duplicate;
+
+  function toggle(id,key,after){ const b=document.getElementById(id);
+    b.onclick=()=>{ state[key]=!state[key]; b.setAttribute('aria-pressed',state[key]); render(); if(after)after(); }; }
+  toggle('tGrid','grid'); toggle('tSnap','snap'); toggle('tNames','names'); toggle('tDims','dims');
+
+  document.getElementById('roomW').onchange=e=>{ const v=parseFloat(e.target.value); if(v>=1){ state.room.w=v; render(); syncPanel(); pushHistory(); } };
+  document.getElementById('roomH').onchange=e=>{ const v=parseFloat(e.target.value); if(v>=1){ state.room.h=v; render(); syncPanel(); pushHistory(); } };
+
+  document.getElementById('togglePanel').onclick=()=>document.getElementById('panel').classList.toggle('hidden');
+
+  // ---------- export ----------
+  function buildExportSVG(){
+    const Wu=state.room.w*PPM, Hu=state.room.h*PPM;
+    const vb=`${-M.l} ${-M.t} ${Wu+M.l+M.r} ${Hu+M.t+M.b}`;
+    let body=chrome(true);
+    for(const el of state.els) body+=elementGroup(el,true);
+    const out=`<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" width="${Wu+M.l+M.r}" height="${Hu+M.t+M.b}">
+<rect x="${-M.l}" y="${-M.t}" width="${Wu+M.l+M.r}" height="${Hu+M.t+M.b}" fill="#ffffff"/>
+${body}
+</svg>`;
+    return resolveVars(out);
+  }
+  function download(name, blob){
+    const url=URL.createObjectURL(blob); const a=document.createElement('a');
+    a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+  }
+  document.getElementById('expSvg').onclick=()=>{
+    const wasSel=state.sel; state.sel=null; // pas d'overlay dans l'export
+    const svgStr=buildExportSVG(); state.sel=wasSel;
+    download('plan-salle.svg', new Blob([svgStr],{type:'image/svg+xml'}));
+  };
+  document.getElementById('expPng').onclick=()=>{
+    const wasSel=state.sel; state.sel=null;
+    const svgStr=buildExportSVG(); state.sel=wasSel;
+    const Wu=state.room.w*PPM, Hu=state.room.h*PPM;
+    const totalW=Wu+M.l+M.r, totalH=Hu+M.t+M.b, scale=2;
+    const img=new Image();
+    // data URL base64 : fonctionne en iframe sandboxée (pas de createObjectURL requis)
+    const b64=btoa(unescape(encodeURIComponent(svgStr)));
+    const dataUrl='data:image/svg+xml;base64,'+b64;
+    img.onload=()=>{
+      const c=document.createElement('canvas'); c.width=totalW*scale; c.height=totalH*scale;
+      const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+      ctx.drawImage(img,0,0,c.width,c.height);
+      c.toBlob(b=>download('plan-salle.png',b),'image/png');
+    };
+    img.onerror=()=>alert("Export PNG échoué. Essaie l'export SVG, ou ouvre le fichier HTML directement dans ton navigateur.");
+    img.src=dataUrl;
+  };
+
+  document.getElementById('saveJson').onclick=()=>{
+    const data=JSON.stringify({room:state.room, els:state.els},null,2);
+    download('plan-salle.json', new Blob([data],{type:'application/json'}));
+  };
+  document.getElementById('loadJson').onclick=()=>document.getElementById('fileJson').click();
+  document.getElementById('fileJson').onchange=e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>{ try{
+      const s=JSON.parse(r.result);
+      if(!s.room||!Array.isArray(s.els)) throw 0;
+      state.room=s.room; state.els=s.els; state.sel=null;
+      uid=state.els.reduce((mx,el)=>{ const n=parseInt(String(el.id).replace(/\D/g,''))||0; return Math.max(mx,n); },0)+1;
+      render(); syncPanel(); pushHistory();
+    }catch(_){ alert("Fichier illisible : sélectionnez un plan-salle.json exporté depuis cet éditeur."); } };
+    r.readAsText(f); e.target.value='';
+  };
+
+  window.addEventListener('resize', ()=>syncPanel());
+
+  // ---------- démarrage ----------
+  render(); syncPanel(); pushHistory();
+})();
+</script>
+</body>
+</html>
